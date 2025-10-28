@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI小说创作辅助系统 - 测试界面</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 配置Tailwind自定义主题 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#1F2937',
+                        light: '#F9FAFB'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .dialog-shadow {
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+            }
+            .animate-pulse-slow {
+                animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+        }
+        #loadingIndicator {
+            overflow-y: auto; /* 垂直方向滚动 */
+            max-height: 300px; /* 限制最大高度 */
+        }
+        #bookCatalog {
+            overflow-y: auto; /* 添加垂直滚动 */
+        }
+        .dialog-shadow {
+            display: flex;
+            flex-direction: column;
+        }
+        /* 确保表单容器填充剩余空间 */
+        #nextChapterForm {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        /* 让内容区域的space-y-4占满，提交按钮靠底部 */
+        #nextChapterForm .space-y-4 {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-book text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-neutral">AI小说创作辅助系统</h1>
+            </div>
+            <div class="text-sm text-gray-500">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <i class="fa fa-circle text-green-500 mr-1 text-[8px]"></i>
+                    测试模式
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-7xl flex flex-row">
+        <!-- 左侧书籍目录框 -->
+        <div id="bookCatalog" class="w-64 bg-white rounded-xl p-4 space-y-3 overflow-y-auto shadow-md flex-grow-0 flex-shrink-0">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">书籍目录</h3>
+            <div id="catalogItems" class="space-y-2">
+                <!-- 目录项会通过JS动态生成 -->
+            </div>
+        </div>
+
+        <!-- 中间内容区 -->
+        <div class="lg:w-2/3">
+            <div class="flex flex-col space-y-8">
+                <!-- 用户输入对话框 -->
+                <div class="bg-white rounded-xl dialog-shadow overflow-hidden transition-all duration-300 hover:shadow-lg">
+                    <div class="bg-primary px-6 py-3 flex items-center">
+                        <i class="fa fa-user-circle text-white mr-3 text-xl"></i>
+                        <h3 class="text-white font-medium">你的创作需求</h3>
+                    </div>
+                    <div class="p-6">
+                        <textarea
+                            id="userInput"
+                            class="w-full h-40 p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none"
+                            placeholder="请输入章节标题、大纲或创作要求...例如：
+章节标题：第三章 神秘的图书馆
+章节大纲：主角发现隐藏的密室，找到一本古老的日记，揭示了祖父的秘密
+创作风格：悬疑、紧张，注重环境描写和主角的心理活动"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="flex justify-center">
+                    <button
+                        id="submitBtn"
+                        class="bg-primary hover:bg-primary/90 text-white font-medium py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-300 flex items-center space-x-2"
+                    >
+                        <i class="fa fa-paper-plane"></i>
+                        <span>生成章节指令</span>
+                    </button>
+                </div>
+
+                <!-- AI输出对话框 -->
+                <div class="bg-white rounded-xl dialog-shadow overflow-hidden transition-all duration-300 hover:shadow-lg">
+                    <div class="bg-secondary px-6 py-3 flex items-center">
+                        <i class="fa fa-robot text-white mr-3 text-xl"></i>
+                        <h3 class="text-white font-medium">AI生成内容</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="aiOutput" class="min-h-64 p-4 border border-gray-200 rounded-lg bg-gray-50 prose max-w-none relative">
+                            <div class="text-gray-400 flex flex-col items-center justify-center h-64">
+                                <i class="fa fa-comment-o text-4xl mb-4 text-gray-300"></i>
+                                <p>AI生成的内容将显示在这里...</p>
+                            </div>
+                            <!-- 右下角的发布按钮 -->
+
+                        </div>
+                        <!-- 加载状态 (默认隐藏) -->
+                        <div id="loadingIndicator" class="hidden min-h-64 flex items-center justify-center relative">
+                            <div class="text-center">
+                                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+                                <p class="text-gray-500">AI正在创作中，请稍候...</p>
+                            </div>
+                        </div>
+                        <button
+                                id="publish"
+                                class="hidden right-4 bottom-4 bg-primary hover:bg-primary/90 text-white font-medium py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-300 flex items-center space-x-2"
+                            >
+                                发布
+                            </button>
+                        <button
+                                id="publishing"
+                                class="hidden right-4 bottom-4 bg-primary hover:bg-primary/90 text-white font-medium py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-300 flex items-center space-x-2"
+                            >
+                                正在发布中......
+                            </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：章节生成指令 -->
+        <div class="lg:w-1/3 flex">
+            <div class="bg-white rounded-xl dialog-shadow overflow-hidden transition-all duration-300 hover:shadow-lg h-full w-full flex flex-col">
+                <div class="bg-purple-600 px-6 py-3 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fa fa-list-alt text-white mr-3 text-xl"></i>
+                        <h3 class="text-white font-medium">章节生成指令</h3>
+                    </div>
+                </div>
+
+                <div class="p-4 flex-grow overflow-y-auto">
+                    <form id="nextChapterForm" class="h-full">
+                        <div class="space-y-4 h-full">
+                            <!-- 章节标题 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">章节标题</label>
+                                <input
+                                    type="text"
+                                    id="chapter_title"
+                                    placeholder="例如：生活的磨合"
+                                    class="w-full p-2 border border-gray-200 rounded-md text-sm"
+                                    required
+                                >
+                            </div>
+
+                            <!-- 章节大纲 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">章节大纲</label>
+                                <textarea
+                                    id="chapter_outline"
+                                    class="w-full p-2 border border-gray-200 rounded-md text-sm"
+                                    rows="4"
+                                    required
+                                    placeholder="例如：在302室的共同生活中，林屿与苏晓棠面临日常琐事的挑战，彼此逐渐适应与磨合..."
+                                ></textarea>
+                            </div>
+
+                            <!-- 创作指令 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">创作指令</label>
+
+                                <!-- 叙事目标 -->
+                                <div class="mb-3">
+                                    <label class="block text-xs text-gray-500 mb-1">叙事目标</label>
+                                    <div id="narrative_goals" class="space-y-2">
+                                        <div class="flex items-center">
+                                            <input
+                                                type="text"
+                                                placeholder="例如：展现林屿与苏晓棠在日常生活中的互动与成长"
+                                                class="w-full p-2 border border-gray-200 rounded-md text-sm"
+                                                required
+                                            >
+                                            <button type="button" class="ml-2 text-red-400 hover:text-red-600 remove-item">
+                                                <i class="fa fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="mt-1 text-sm text-primary add-item" data-target="narrative_goals">
+                                        <i class="fa fa-plus mr-1"></i> 添加目标
+                                    </button>
+                                </div>
+
+                                <!-- 角色焦点 -->
+                                <div class="mb-3">
+                                    <label class="block text-xs text-gray-500 mb-1">角色焦点</label>
+                                    <div id="character_focus" class="space-y-2">
+                                        <div class="flex items-center">
+                                            <input
+                                                type="text"
+                                                placeholder="例如：林屿：展现他在写作上的挣扎与努力，如何在苏晓棠的陪伴下逐渐找回自信"
+                                                class="w-full p-2 border border-gray-200 rounded-md text-sm"
+                                                required
+                                            >
+                                            <button type="button" class="ml-2 text-red-400 hover:text-red-600 remove-item">
+                                                <i class="fa fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="mt-1 text-sm text-primary add-item" data-target="character_focus">
+                                        <i class="fa fa-plus mr-1"></i> 添加角色
+                                    </button>
+                                </div>
+
+                                <!-- 主题元素 -->
+                                <div class="mb-3">
+                                    <label class="block text-xs text-gray-500 mb-1">主题元素</label>
+                                    <div id="thematic_elements" class="space-y-2">
+                                        <div class="flex items-center">
+                                            <input
+                                                type="text"
+                                                placeholder="例如：梦想与现实的碰撞"
+                                                class="w-full p-2 border border-gray-200 rounded-md text-sm"
+                                                required
+                                            >
+                                            <button type="button" class="ml-2 text-red-400 hover:text-red-600 remove-item">
+                                                <i class="fa fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="mt-1 text-sm text-primary add-item" data-target="thematic_elements">
+                                        <i class="fa fa-plus mr-1"></i> 添加主题
+                                    </button>
+                                </div>
+
+                                <!-- 结构要求 -->
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">结构要求</label>
+                                    <div id="structural_requirements" class="space-y-2">
+                                        <div class="flex items-center">
+                                            <input
+                                                type="text"
+                                                placeholder="例如：在章节中引入小冲突，以增加故事的紧张感"
+                                                class="w-full p-2 border border-gray-200 rounded-md text-sm"
+                                                required
+                                            >
+                                            <button type="button" class="ml-2 text-red-400 hover:text-red-600 remove-item">
+                                                <i class="fa fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="mt-1 text-sm text-primary add-item" data-target="structural_requirements">
+                                        <i class="fa fa-plus mr-1"></i> 添加要求
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 让提交按钮靠底部 -->
+                            <div class="mt-auto">
+                                <button
+                                    type="submit"
+                                    id="generateChapterBtn"
+                                    class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-md text-sm transition-colors"
+                                >
+                                    生成章节内容
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部信息 -->
+    <footer class="bg-white border-t border-gray-200 py-6 mt-12">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>AI小说创作辅助系统 &copy; 2025 | 测试版本</p>
+        </div>
+    </footer>
+
+    <script>
+        // 获取DOM元素
+
+        const userInput = document.getElementById('userInput');
+        const aiOutput = document.getElementById('aiOutput');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const nextChapterForm = document.getElementById('nextChapterForm');
+        const generateChapterBtn = document.getElementById('generateChapterBtn');
+         const pub = document.getElementById('publish')
+        const pubing = document.getElementById('publishing')
+         document.addEventListener('DOMContentLoaded', fetchBookCatalog);
+        var publish_content = ""
+        // 模拟AI响应内容
+        const mockAIResponse = `# 第三章 神秘的图书馆
+
+推开那扇沉重的橡木大门时，空气中弥漫着尘埃与陈旧纸张的混合气味。伊莱娜的手电筒光束在黑暗中颤抖，照亮了一排排直达天花板的书架，上面摆满了用皮革和布料装订的古老书籍。
+
+"有人吗？"她的声音在空旷的空间里回响，却只得到沉默的回应。
+
+就在这时，她注意到左侧墙壁上有一处异样——一块石板的颜色比周围略深。她走过去，用手指轻轻敲了敲，发出空洞的回响。
+
+当她用力推开石板，一个仅容一人通过的狭窄通道出现在眼前。通道尽头，微弱的月光从高处的小窗透进来，照亮了一个木制书架，而书架前的桌子上，放着一本黑色封皮的日记。
+
+伊莱娜的心跳开始加速。她认得这个封面——这是祖父的日记。当她翻开泛黄的纸页，一行潦草的字迹映入眼帘："如果你来这里，说明我已经不在了。小心那些眼睛，它们无处不在..."`;
+
+        // 表单提交事件（生成章节指令）
+        submitBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            // 显示加载状态
+            aiOutput.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i><span>处理中...</span>';
+
+            try {
+                // 获取表单数据
+                const formData = {
+                    chapter_title: document.getElementById('chapter_title').value,
+                    chapter_outline: document.getElementById('chapter_outline').value,
+                    creative_brief: {
+                        narrative_goals: Array.from(document.querySelectorAll('#narrative_goals input'))
+                            .map(input => input.value.trim()),
+                        character_focus: Array.from(document.querySelectorAll('#character_focus input'))
+                            .map(input => input.value.trim()),
+                        thematic_elements: Array.from(document.querySelectorAll('#thematic_elements input'))
+                            .map(input => input.value.trim()),
+                        structural_requirements: Array.from(document.querySelectorAll('#structural_requirements input'))
+                            .map(input => input.value.trim())
+                    }
+                };
+                const input = document.getElementById('userInput').value;
+                // 验证数据
+                // if (!formData.chapter_title || !formData.chapter_outline) {
+                //     alert('请填写章节标题和大纲');
+                //     return;
+                // }
+
+                // 发送请求到API
+                const response = await fetch('api/chapterIntroduction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        input: input,
+                        chapter_title: formData.chapter_title,
+                        chapter_outline: formData.chapter_outline,
+                        creative_brief: formData.creative_brief
+                    }),
+                });
+
+                // 解析返回的数据
+                const data = await response.json();
+                document.getElementById('chapter_title').value = data.chapter_title;
+                document.getElementById('chapter_outline').value = data.chapter_outline;
+                function updateInputFields(id, dataList) {
+                    const container = document.getElementById(id);
+                    if (!container) return; // 如果容器不存在，直接返回
+
+                    let inputs = Array.from(document.querySelectorAll(`#${id} input`));
+
+                    // 如果输入框数量少于列表长度，则新增输入框
+                    if (inputs.length < dataList.length) {
+                        const diff = dataList.length - inputs.length;
+                        for (let i = 0; i < diff; i++) {
+                            const newItem = document.createElement('div');
+                            newItem.className = 'flex items-center';
+                            newItem.innerHTML = `
+                                <input
+                                    type="text"
+                                    placeholder="输入内容..."
+                                    class="w-full p-2 border border-gray-200 rounded-md text-sm"
+                                    required
+                                >
+                                <button type="button" class="ml-2 text-red-400 hover:text-red-600 remove-item">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            `;
+                            container.appendChild(newItem);
+                        }
+                    }
+                    // 如果输入框数量多于列表长度，则删除多余的输入框
+                    else if (inputs.length > dataList.length) {
+                        const diff = inputs.length - dataList.length;
+                        for (let i = 0; i < diff; i++) {
+                            const lastItem = container.lastElementChild;
+                            lastItem.remove();
+                        }
+                    }
+
+                    // 重新获取输入框元素（因为可能新增或删除了）
+                    inputs = document.querySelectorAll(`#${id} input`);
+                    inputs.forEach((input, index) => {
+                        input.value = dataList[index] || ''; // 处理空值
+                    });
+                }
+                updateInputFields('narrative_goals', data.creative_brief.narrative_goals);
+                updateInputFields('character_focus', data.creative_brief.character_focus);
+                updateInputFields('thematic_elements', data.creative_brief.thematic_elements);
+                updateInputFields('structural_requirements', data.creative_brief.structural_requirements);
+                document.getElementById('userInput').value = null;
+
+
+                // creative_brief: {
+                //     narrative_goals: Array.from(document.querySelectorAll('#narrative_goals input'))
+                //         .map(input => input.value.trim()),
+                //     character_focus: Array.from(document.querySelectorAll('#character_focus input'))
+                //         .map(input => input.value.trim()),
+                //     thematic_elements: Array.from(document.querySelectorAll('#thematic_elements input'))
+                //         .map(input => input.value.trim()),
+                //     structural_requirements: Array.from(document.querySelectorAll('#structural_requirements input'))
+                //         .map(input => input.value.trim())
+                // }
+                // 显示返回的数据
+                // aiOutput.innerHTML = `
+                //     <div class="p-4">
+                //         <p><strong>章节标题:</strong> ${data.chapter_title}</p>
+                //         <p><strong>章节大纲:</strong> ${data.chapter_outline}</p>
+                //         <p><strong>叙事目标:</strong> ${data.creative_brief.narrative_goals.join(', ')}</p>
+                //         <p><strong>角色焦点:</strong> ${data.creative_brief.character_focus.join(', ')}</p>
+                //         <p><strong>主题元素:</strong> ${data.creative_brief.thematic_elements.join(', ')}</p>
+                //         <p><strong>结构要求:</strong> ${data.creative_brief.structural_requirements.join(', ')}</p>
+                //     </div>
+                // `;
+
+                aiOutput.classList.remove('hidden');
+                loadingIndicator.classList.add('hidden');
+            } catch (error) {
+                console.error('生成失败:', error);
+                aiOutput.innerHTML = '<p class="text-red-500">生成失败，请重试</p>';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i><span>生成章节指令</span>';
+            }
+        });
+        generateChapterBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            // 显示加载状态
+            aiOutput.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+            submitBtn.disabled = true;
+            //submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i><span>处理中...</span>';
+
+            try {
+                // 获取表单数据
+                const formData = {
+                    chapter_title: document.getElementById('chapter_title').value,
+                    chapter_outline: document.getElementById('chapter_outline').value,
+                    creative_brief: {
+                        narrative_goals: Array.from(document.querySelectorAll('#narrative_goals input'))
+                            .map(input => input.value.trim()),
+                        character_focus: Array.from(document.querySelectorAll('#character_focus input'))
+                            .map(input => input.value.trim()),
+                        thematic_elements: Array.from(document.querySelectorAll('#thematic_elements input'))
+                            .map(input => input.value.trim()),
+                        structural_requirements: Array.from(document.querySelectorAll('#structural_requirements input'))
+                            .map(input => input.value.trim())
+                    }
+                };
+
+                // 发送请求到API
+                const response = await fetch('api/write', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chapter_title: formData.chapter_title,
+                        chapter_outline: formData.chapter_outline,
+                        creative_brief: formData.creative_brief
+                    }),
+                });
+                // 解析返回的数据
+                const data = await response.json();
+
+                publish_content = data.chapter;
+                // 创建可编辑的内容区域
+                aiOutput.innerHTML = `
+                    <div class="p-4 relative border border-gray-200 rounded-lg bg-gray-50" contenteditable="true">
+                        <p>${data.chapter}</p>
+                    </div>
+                `;
+                aiOutput.classList.remove('hidden');
+                loadingIndicator.classList.add('hidden');
+                pub.classList.remove('hidden')
+            } catch (error) {
+                console.error('生成失败:', error);
+                aiOutput.innerHTML = '<p class="text-red-500">生成失败，请重试</p>';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i><span>生成章节指令</span>';
+            }
+        });
+
+        pub.addEventListener('click', async () => {
+            try {
+                pub.classList.add('hidden')
+                pubing.classList.remove('hidden')
+                const editedContent = document.querySelector('#aiOutput > div').innerText;
+                const response = await fetch('/api/publish', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ publish_content: editedContent }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('API请求失败');
+                }
+
+                const data = await response.json(); // 假设后端返回的是 { "response": [...] }
+                fetchBookCatalog()
+                pub.classList.add('hidden')
+                pubing.classList.add('hidden')
+                document.querySelector('#aiOutput > div').innerHTML='<div class="text-gray-400 fleclassNamex-col items-center justify-center h-64 " contenteditable="false">\n' +
+                    '                        <i class="fa fa-comment-o tclassNamexl mb-4 text-gray-300"></i>\n' +
+                    '                        <p>AI生成的内容将显示在这里...</p>\n' +
+                    '                    </div>'
+
+                // 检查返回的数据是否包含 "response" 字段，并且该字段是一个数组
+                // if (data.response && Array.isArray(data.response)) {
+                //     const catalogItems = document.getElementById('catalogItems');
+                //     catalogItems.innerHTML = '';
+                //
+                //     data.response.forEach((chapter, index) => {
+                //         const button = document.createElement('button');
+                //         button.className = 'w-full px-3 py-1.5 bg-gray-100 rounded hover:bg-gray-200 text-left text-sm';
+                //         button.textContent = `${index + 1}. ${chapter}`;
+                //         button.addEventListener('click', async () => {
+                //             try {
+                //                 // 发送请求获取章节内容
+                //                 const response = await fetch('/api/get_chapter', {
+                //                     method: 'POST',
+                //                     headers: {
+                //                         'Content-Type': 'application/json',
+                //                     },
+                //                     body: JSON.stringify({ name: chapter }),
+                //                 });
+                //                 const data = await response.json();
+                //                 const content = data.content;
+                //
+                //                 // 创建弹窗
+                //                 const modal = document.createElement('div');
+                //                 modal.id = 'chapterModal';
+                //                 modal.className = 'fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50';
+                //                 modal.innerHTML = `
+                //                     <div class="bg-white rounded-xl w-full max-w-3xl max-h-[80vh] overflow-y-auto">
+                //                         <div class="flex justify-between items-center p-4 bg-gray-100 border-b">
+                //                             <h3 class="text-lg font-semibold">章节内容</h3>
+                //                             <button id="closeModal" class="text-gray-500 hover:text-gray-700">
+                //                                 <i class="fa fa-times"></i>
+                //                             </button>
+                //                         </div>
+                //                         <div class="p-6" id="modalContent">
+                //                             ${content}
+                //                         </div>
+                //                     </div>
+                //                 `;
+                //                 document.body.appendChild(modal);
+                //
+                //                 // 关闭弹窗事件
+                //                 document.getElementById('closeModal').addEventListener('click', () => {
+                //                     modal.remove();
+                //                 });
+                //
+                //                 // 点击弹窗背景关闭（可选）
+                //                 modal.addEventListener('click', (e) => {
+                //                     if (e.target === modal) {
+                //                         modal.remove();
+                //                     }
+                //                 });
+                //             } catch (error) {
+                //                 console.error('获取章节内容失败', error);
+                //             }
+                //         });
+                //         catalogItems.appendChild(button);
+                //     });
+                //
+                //     // 显示目录框
+                //     document.getElementById('bookCatalog').classList.remove('hidden');
+                // } else {
+                //     console.error('返回的数据结构不符合预期:', data);
+                // }
+            } catch (error) {
+                console.error('发布失败', error);
+            }
+        });
+        // 添加项目按钮事件
+        document.querySelectorAll('.add-item').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetId = button.getAttribute('data-target');
+                const targetContainer = document.getElementById(targetId);
+
+                const newItem = document.createElement('div');
+                newItem.className = 'flex items-center';
+                newItem.innerHTML = `
+                    <input
+                        type="text"
+                        class="w-full p-2 border border-gray-200 rounded-md text-sm"
+                        placeholder="请输入内容..."
+                        required
+                    >
+                    <button type="button" class="ml-2 text-red-400 hover:text-red-600 remove-item">
+                        <i class="fa fa-times"></i>
+                    </button>
+                `;
+
+                targetContainer.appendChild(newItem);
+
+                // 为新添加的删除按钮绑定事件
+                newItem.querySelector('.remove-item').addEventListener('click', () => {
+                    newItem.remove();
+                });
+            });
+        });
+
+        // 删除项目按钮事件
+        document.querySelectorAll('.remove-item').forEach(button => {
+            button.addEventListener('click', () => {
+                const parent = button.closest('div');
+                // 确保至少保留一个项目
+                if (parent.parentElement.children.length > 1) {
+                    parent.remove();
+                } else {
+                    alert('至少需要保留一个项目');
+                }
+            });
+        });
+        async function fetchBookCatalog() {
+    try {
+        const projectId = new URLSearchParams(window.location.search).get('project_id');
+        if (!projectId) {
+            console.error('未找到项目ID');
+            return;
+        }
+
+        const response = await fetch(`/api/book_catalog?project_id=${projectId}`);
+        if (!response.ok) {
+            throw new Error('获取书籍目录失败');
+        }
+
+        const data = await response.json();
+        const catalogItems = document.getElementById('catalogItems');
+        catalogItems.innerHTML = '';
+
+        if (data.response && Array.isArray(data.response)) {
+            data.response.forEach((chapter, index) => {
+                const button = document.createElement('button');
+                button.className = 'w-full px-3 py-1.5 bg-gray-100 rounded hover:bg-gray-200 text-left text-sm';
+                button.textContent = `${index + 1}. ${chapter}`;
+                button.addEventListener('click', async () => {
+                    try {
+                        const response = await fetch('/api/get_chapter', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ name: chapter }),
+                        });
+                        const data = await response.json();
+                        const content = data.content;
+
+                        const modal = document.createElement('div');
+                        modal.id = 'chapterModal';
+                        modal.className = 'fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50';
+                        modal.innerHTML = `
+                            <div class="bg-white rounded-xl w-full max-w-3xl max-h-[80vh] overflow-y-auto">
+                                <div class="flex justify-between items-center p-4 bg-gray-100 border-b">
+                                    <h3 class="text-lg font-semibold">章节内容</h3>
+                                    <button id="closeModal" class="text-gray-500 hover:text-gray-700">
+                                        <i class="fa fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="p-6" id="modalContent">
+                                    ${content}
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(modal);
+
+                        document.getElementById('closeModal').addEventListener('click', () => {
+                            modal.remove();
+                        });
+
+                        modal.addEventListener('click', (e) => {
+                            if (e.target === modal) {
+                                modal.remove();
+                            }
+                        });
+                    } catch (error) {
+                        console.error('获取章节内容失败', error);
+                    }
+                });
+                catalogItems.appendChild(button);
+            });
+
+            document.getElementById('bookCatalog').classList.remove('hidden');
+        } else {
+            console.error('返回的数据结构不符合预期:', data);
+        }
+    } catch (error) {
+        console.error('获取书籍目录出错:', error);
+    }
+}
+
+
+        // 添加回车键提交功能 (按住Shift+Enter换行)
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitBtn.click();
+            }
+        });
+
+        // 引入Markdown解析库
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+        document.head.appendChild(script);
+
+    </script>
+</body>
+</html>

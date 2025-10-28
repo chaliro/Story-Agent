@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI小说创作辅助系统 - 项目管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 配置Tailwind自定义主题 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#1F2937',
+                        light: '#F9FAFB'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-book text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-neutral">AI小说创作辅助系统</h1>
+            </div>
+            <div class="text-sm text-gray-500">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <i class="fa fa-circle text-green-500 mr-1 text-[8px]"></i>
+                    测试模式
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-4xl">
+        <div class="mb-8 text-center">
+            <h2 class="text-[clamp(1.25rem,3vw,1.75rem)] font-semibold text-neutral">项目管理</h2>
+            <p class="text-gray-500 mt-2">创建新的小说项目或继续编辑已有项目</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- 创建新项目 -->
+            <div class="bg-white rounded-xl card-shadow overflow-hidden transition-all duration-300 hover:shadow-lg">
+                <div class="bg-primary px-6 py-3 flex items-center">
+                    <i class="fa fa-plus-circle text-white mr-3 text-xl"></i>
+                    <h3 class="text-white font-medium">创建新项目</h3>
+                </div>
+                <div class="p-6">
+                    <a
+                        id="createProjectLink"
+                        href="project_setup.html"
+                        class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2"
+                    >
+                        <i class="fa fa-arrow-right"></i>
+                        <span>开始创建项目</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 已有项目列表 -->
+            <div class="bg-white rounded-xl card-shadow overflow-hidden transition-all duration-300 hover:shadow-lg">
+                <div class="bg-secondary px-6 py-3 flex items-center">
+                    <i class="fa fa-list text-white mr-3 text-xl"></i>
+                    <h3 class="text-white font-medium">已有项目</h3>
+                </div>
+                <div class="p-6">
+                    <div id="projectsList" class="space-y-3 max-h-64 overflow-y-auto pr-2">
+                        <!-- 项目列表将通过JavaScript动态生成 -->
+                        <div class="text-gray-400 flex flex-col items-center justify-center h-40">
+                            <i class="fa fa-folder-open-o text-4xl mb-4 text-gray-300"></i>
+                            <p>加载项目中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部信息 -->
+    <footer class="bg-white border-t border-gray-200 py-6 mt-12">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>AI小说创作辅助系统 &copy; 2023 | 测试版本</p>
+        </div>
+    </footer>
+
+    <script>
+       // 获取DOM元素
+const projectNameInput = document.getElementById('projectName');
+const createProjectLink = document.getElementById('createProjectLink');
+const projectsList = document.getElementById('projectsList');
+
+// 页面加载时获取项目列表
+document.addEventListener('DOMContentLoaded', fetchProjectsList);
+
+// 从后端API获取项目列表
+async function fetchProjectsList() {
+    try {
+        const response = await fetch('/api/projects');
+        if (!response.ok) {
+            throw new Error('获取项目列表失败');
+        }
+
+        const data = await response.json();
+        renderProjectsList(data.projects);
+    } catch (error) {
+        console.error('获取项目列表出错:', error);
+        projectsList.innerHTML = `
+            <div class="text-gray-400 flex flex-col items-center justify-center h-40">
+                <i class="fa fa-exclamation-triangle text-4xl mb-4 text-yellow-300"></i>
+                <p>加载项目失败，请刷新页面重试</p>
+            </div>
+        `;
+    }
+}
+
+// 渲染项目列表
+function renderProjectsList(projects) {
+    const projectEntries = Object.entries(projects);
+
+    if (projectEntries.length === 0) {
+        projectsList.innerHTML = `
+            <div class="text-gray-400 flex flex-col items-center justify-center h-40">
+                <i class="fa fa-folder-open-o text-4xl mb-4 text-gray-300"></i>
+                <p>暂无项目，请创建新的项目</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 按创建时间排序（最新的在前）
+    projectEntries.sort((a, b) => b[1].created_at - a[1].created_at);
+
+    projectsList.innerHTML = projectEntries.map(([id, project]) => `
+        <div class="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
+            <div class="flex items-center space-x-3">
+                <i class="fa fa-book text-primary"></i>
+                <div>
+                    <h4 class="font-medium text-neutral">${project.name}</h4>
+                    <p class="text-xs text-gray-500">创建于 ${new Date(project.created_at * 1000).toLocaleString()}</p>
+                </div>
+            </div>
+
+<button
+
+  onclick="openProject('${id}')"
+  style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;"
+>
+  <i class="fa fa-arrow-right"></i>
+</button>
+        </div>
+    `).join('');
+}
+
+// 创建新项目（跳转逻辑）
+document.getElementById('createProjectLink').addEventListener('click', function() {
+    const projectName = document.getElementById('projectName').value.trim();
+    if (!projectName) {
+        alert('请输入项目名称');
+        return;
+    }
+    // 将项目名称作为参数传递到新项目设置页面
+    window.location.href = `project_setup.html?name=${encodeURIComponent(projectName)}`;
+});
+
+// 打开项目（跳转到编辑页面）
+function openProject(projectId) {
+    // 实际应用中应跳转到项目编辑页面，这里仅做示例
+    window.location.href = `write.html?project_id=${projectId}`;
+}
+    </script>
+</body>
+</html>

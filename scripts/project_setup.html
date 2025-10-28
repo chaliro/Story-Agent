@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目设置 - AI小说创作辅助系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#1F2937',
+                        light: '#F9FAFB'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-book text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-neutral">AI小说创作辅助系统</h1>
+            </div>
+            <div class="text-sm text-gray-500">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <i class="fa fa-circle text-green-500 mr-1 text-[8px]"></i>
+                    项目设置
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-5xl">
+        <div class="mb-8 text-center">
+            <h2 class="text-[clamp(1.25rem,3vw,1.75rem)] font-semibold text-neutral">项目详细设置</h2>
+            <p class="text-gray-500 mt-2">与AI讨论确定故事的基本信息，完成项目创建</p>
+        </div>
+
+        <div class="grid md:grid-cols-12 gap-8">
+            <!-- 左侧AI对话框 -->
+            <div class="md:col-span-5">
+                <div class="bg-white rounded-xl card-shadow overflow-hidden h-full">
+                    <div class="px-6 py-4 bg-primary flex items-center">
+                        <i class="fa fa-comments text-white mr-3 text-xl"></i>
+                        <h3 class="text-white font-medium">AI辅助设置</h3>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-sm text-gray-600 mb-4">向AI描述你的需求，AI将帮助你完善故事信息</p>
+                        <textarea
+                            id="aiPrompt"
+                            class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all h-40 resize-none"
+                            placeholder="例如：请帮我完善这个故事的大纲，增加一些悬疑元素，风格要接近科幻小说..."
+                        ></textarea>
+                        <button
+                            id="getAiHelp"
+                            class="mt-4 w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2"
+                        >
+                            <i class="fa fa-paper-plane"></i>
+                            <span>获取AI帮助</span>
+                        </button>
+                        <div id="aiResponse" class="mt-4 hidden">
+                            <div class="text-sm font-medium text-gray-700 mb-2">AI回复：</div>
+                            <div class="p-3 bg-gray-50 rounded-lg text-sm text-gray-600" id="aiResponseContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧项目信息列表 -->
+            <div class="md:col-span-7 space-y-6">
+                <!-- 项目名称设置 -->
+                <div class="bg-white rounded-xl card-shadow overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                        <h3 class="font-medium text-neutral">项目名称</h3>
+                    </div>
+                    <div class="p-6">
+                        <input
+                            type="text"
+                            id="projectName"
+                            class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                            placeholder="项目名称将与故事标题一致"
+                            readonly
+                        >
+                    </div>
+                </div>
+
+                <!-- 故事标题设置 -->
+                <div class="bg-white rounded-xl card-shadow overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                        <h3 class="font-medium text-neutral">1. 故事标题</h3>
+                    </div>
+                    <div class="p-6">
+                        <textarea
+                            id="storyTitle"
+                            class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                            placeholder="请输入故事标题..."
+                            rows="2"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- 故事大纲设置 -->
+                <div class="bg-white rounded-xl card-shadow overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                        <h3 class="font-medium text-neutral">2. 故事大纲</h3>
+                    </div>
+                    <div class="p-6">
+                        <textarea
+                            id="storyOutline"
+                            class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                            placeholder="请输入故事大纲，描述主要情节和发展..."
+                            rows="6"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- 写作风格设置 -->
+                <div class="bg-white rounded-xl card-shadow overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                        <h3 class="font-medium text-neutral">3. 写作风格</h3>
+                    </div>
+                    <div class="p-6">
+                        <textarea
+                            id="writingStyle"
+                            class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                            placeholder="请描述写作风格要求，例如：语言简洁、节奏明快、注重心理描写等..."
+                            rows="4"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="flex justify-between">
+                    <button
+                        id="backBtn"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+                    >
+                        <i class="fa fa-arrow-left mr-2"></i>返回
+                    </button>
+                    <button
+                        id="createBtn"
+                        class="bg-secondary hover:bg-secondary/90 text-white font-medium py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-300"
+                    >
+                        <i class="fa fa-check mr-2"></i>完成创建
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部信息 -->
+    <footer class="bg-white border-t border-gray-200 py-6 mt-12">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>AI小说创作辅助系统 &copy; 2023 | 测试版本</p>
+        </div>
+    </footer>
+
+    <script>
+        // 当标题变化时同步更新项目名称
+        document.getElementById('storyTitle').addEventListener('input', function() {
+            document.getElementById('projectName').value = this.value || '未命名项目';
+        });
+
+        // AI辅助功能
+        document.getElementById('getAiHelp').addEventListener('click', async function() {
+            const prompt = document.getElementById('aiPrompt').value.trim();
+            if (!prompt) {
+                alert('请输入你的需求描述');
+                return;
+            }
+
+            // 获取当前所有项目信息（除项目名外）
+            const storyData = {
+                title: document.getElementById('storyTitle').value.trim(),
+                outline: document.getElementById('storyOutline').value.trim(),
+                style: document.getElementById('writingStyle').value.trim(),
+                prompt: prompt
+            };
+
+            // 显示加载状态
+            this.disabled = true;
+            this.innerHTML = '<i class="fa fa-spinner fa-spin"></i><span>AI处理中...</span>';
+            document.getElementById('aiResponse').classList.remove('hidden');
+            document.getElementById('aiResponseContent').innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> AI正在生成建议...';
+
+            try {
+                // 调用AI建议API
+                const response = await fetch('/api/ai/suggest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(storyData)
+                });
+
+                const result = await response.json();
+                if (response.ok && result.suggestions) {
+                    // 更新AI响应内容
+                    // document.getElementById('aiResponseContent').innerHTML = result.suggestions;
+
+                    // 如果有返回的具体字段，更新对应内容
+                    if (result.suggestions) {
+                        if (result.suggestions.title)
+                        {document.getElementById('storyTitle').value = result.suggestions.title;
+                            document.getElementById('projectName').value = result.suggestions.title;}
+                        if (result.suggestions.story_outline) document.getElementById('storyOutline').value = result.suggestions.story_outline;
+                        if (result.suggestions.total_text_style) document.getElementById('writingStyle').value = result.suggestions.total_text_style;
+                    }
+                } else {
+                    document.getElementById('aiResponseContent').innerHTML = `<span class="text-red-500">${result.detail || '无法获取建议，请重试'}</span>`;
+                }
+            } catch (error) {
+                console.error('获取AI建议失败:', error);
+                document.getElementById('aiResponseContent').innerHTML = `<span class="text-red-500">获取建议失败，请重试</span>`;
+            } finally {
+                // 恢复按钮状态
+                this.disabled = false;
+                this.innerHTML = '<i class="fa fa-paper-plane"></i><span>获取AI帮助</span>';
+            }
+        });
+
+        // 返回按钮
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.history.back();
+        });
+
+
+        // 创建项目按钮
+        document.getElementById('createBtn').addEventListener('click', async () => {
+            const title = document.getElementById('storyTitle').value.trim();
+            const outline = document.getElementById('storyOutline').value.trim();
+            const style = document.getElementById('writingStyle').value.trim();
+
+            if (!title) {
+                alert('请填写故事标题');
+                return;
+            }
+            if (!outline) {
+                alert('请填写故事大纲');
+                return;
+            }
+            if (!style) {
+                alert('请填写故事写作风格');
+                return;
+            }
+            try {
+                // 调用创建项目API
+                const response = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_name: title,  // 项目名与标题一致
+                        title: title,
+                        story_outline: outline,
+                        total_text_style: style
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert('项目创建成功！');
+                    window.location.href = 'index.html'; // 跳回项目列表页
+                } else {
+                    alert(`创建失败: ${result.detail || '未知错误'}`);
+                }
+            } catch (error) {
+                console.error('创建项目失败:', error);
+                alert('创建项目失败，请重试');
+            }
+        });
+    </script>
+</body>
+</html>
