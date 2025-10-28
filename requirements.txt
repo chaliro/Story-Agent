@@ -1,0 +1,10 @@
+langchain
+langgraph
+pydantic
+dotenv
+langgraph
+langchain_core
+fastapi
+langchain_community
+langchain_ollama
+langchain_openai
