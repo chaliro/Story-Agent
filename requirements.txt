@@ -1,4 +1,4 @@
-langchain
+langchain==0.3.21
 langgraph
 pydantic
 dotenv
@@ -7,4 +7,5 @@ langchain_core
 fastapi
 langchain_community
 langchain_ollama
+
 langchain_openai
