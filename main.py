@@ -377,6 +377,40 @@ async def confirm_publish(request: ConfirmPublishRequest):
 
     return {"response": res}
 
+
+
+
+from state import GraphEditRequest
+
+
+from character import delete_character, delete_relationship, edit_character_profile
+
+
+# === 新增图谱管理接口 ===
+@app.post("/api/graph/edit", response_class=JSONResponse)
+async def edit_graph(request: GraphEditRequest):
+    """
+    图谱管理统一接口
+    """
+    op = request.operation
+    data = request.data
+    msg = "无操作"
+
+    try:
+        if op == "delete_node":
+            msg = delete_character(data["name"])
+        elif op == "delete_edge":
+            msg = delete_relationship(data["char_a"], data["char_b"])
+        elif op == "update_node":
+            # data 包含 name 和 profile 字典
+            msg = edit_character_profile(data["name"], data["profile"])
+        else:
+            return {"success": False, "message": f"未知操作: {op}"}
+
+        return {"success": True, "message": msg}
+    except Exception as e:
+        return {"success": False, "message": f"操作失败: {str(e)}"}
+
 if __name__ == "__main__":
     import uvicorn
 

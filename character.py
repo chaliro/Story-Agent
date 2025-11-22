@@ -12,6 +12,102 @@ import networkx as nx
 from utils import get_llm, get_evaluation_llm, get_llm_user
 
 
+def delete_character(name: str) -> str:
+    """【图谱管理】彻底删除一个角色（包含JSON档案和图谱节点）"""
+    print(f"--- 🗑️ Deleting Character: {name} ---")
+    dotenv.load_dotenv()
+
+    # 1. 删除 JSON 数据
+    kb_path = os.path.join(os.getenv("MEMORY_ROOT"), os.getenv("CURRENT_PROJECT_ID"), "knowledge_base.json")
+    try:
+        kb = get_knowledge_base(kb_path)
+        if name in kb["characters"]:
+            del kb["characters"][name]
+
+            # 还要删除其他人关系表中关于该角色的记录
+            for char_data in kb["characters"].values():
+                if "relationship" in char_data and name in char_data["relationship"]:
+                    del char_data["relationship"][name]
+
+            save_knowledge_base(kb, kb_path)
+    except Exception as e:
+        return f"❌ JSON删除失败: {e}"
+
+    # 2. 删除 Graph 节点
+    try:
+        G = load_graph()
+        if G.has_node(name):
+            G.remove_node(name)  # networkx会自动删除相关联的边
+            save_graph(G)
+    except Exception as e:
+        return f"❌ 图谱节点删除失败: {e}"
+
+    return f"✅ 角色 '{name}' 已彻底删除"
+
+
+def delete_relationship(char_a: str, char_b: str) -> str:
+    """【图谱管理】删除两个角色之间的关系"""
+    print(f"--- ✂️ Deleting Relationship: {char_a} <-> {char_b} ---")
+    dotenv.load_dotenv()
+
+    # 1. 删除 JSON 数据
+    kb_path = os.path.join(os.getenv("MEMORY_ROOT"), os.getenv("CURRENT_PROJECT_ID"), "knowledge_base.json")
+    try:
+        kb = get_knowledge_base(kb_path)
+        # 双向删除
+        if char_a in kb["characters"] and "relationship" in kb["characters"][char_a]:
+            kb["characters"][char_a]["relationship"].pop(char_b, None)
+        if char_b in kb["characters"] and "relationship" in kb["characters"][char_b]:
+            kb["characters"][char_b]["relationship"].pop(char_a, None)
+        save_knowledge_base(kb, kb_path)
+    except Exception as e:
+        return f"❌ JSON关系删除失败: {e}"
+
+    # 2. 删除 Graph 边
+    try:
+        G = load_graph()
+        if G.has_edge(char_a, char_b):
+            G.remove_edge(char_a, char_b)
+            save_graph(G)
+    except Exception as e:
+        return f"❌ 图谱边删除失败: {e}"
+
+    return f"✅ 关系 '{char_a}-{char_b}' 已删除"
+
+
+def edit_character_profile(name: str, new_data: Dict) -> str:
+    """【图谱管理】编辑角色档案（覆盖模式，用于人工修正）"""
+    print(f"--- ✏️ Editing Character: {name} ---")
+    dotenv.load_dotenv()
+    kb_path = os.path.join(os.getenv("MEMORY_ROOT"), os.getenv("CURRENT_PROJECT_ID"), "knowledge_base.json")
+
+    # 1. 更新 JSON
+    kb = get_knowledge_base(kb_path)
+    if name not in kb["characters"]:
+        return f"❌ 角色 '{name}' 不存在"
+
+    # 覆盖更新字段 (traits, hobbies 等)
+    char_ref = kb["characters"][name]
+    for key, val in new_data.items():
+        if key in char_ref:
+            char_ref[key] = val
+
+    save_knowledge_base(kb, kb_path)
+
+    # 2. 更新 Graph 属性
+    try:
+        G = load_graph()
+        if G.has_node(name):
+            # 更新节点属性
+            for k, v in new_data.items():
+                # NetworkX 属性通常存简单的值或列表
+                if isinstance(v, list) or isinstance(v, str) or isinstance(v, int):
+                    G.nodes[name][k] = v
+            save_graph(G)
+    except Exception as e:
+        print(f"⚠️ 图谱更新微瑕: {e}")
+
+    return f"✅ 角色 '{name}' 档案已更新"
 # ================================================================= #
 # 1. 环境与模型设置 & 图谱路径工具
 # ================================================================= #

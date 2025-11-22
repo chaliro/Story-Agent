@@ -13,7 +13,9 @@ from memory import MemorySystem
 
 from typing import TypedDict, List, Dict, Optional, Any, Annotated
 
-
+class GraphEditRequest(BaseModel):
+    operation: str  # "delete_node", "delete_edge", "update_node"
+    data: Dict[str, Any]  # 包含 name, char_a, char_b, new_profile 等
 # 为了在类型提示中使用 MemorySystem 而不产生循环导入问题，
 # 我们可以使用前向引用字符串 'MemorySystem'。
 # from memory_system import MemorySystem  # 实际使用时会像这样导入

@@ -382,6 +382,32 @@
         </div>
     </div>
 </div>
+    <div id="nodeEditModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[60]">
+    <div class="bg-white w-96 rounded-lg p-6 shadow-xl">
+        <h3 class="text-lg font-bold mb-4" id="editNodeTitle">编辑角色</h3>
+
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs text-gray-500">性格特征 (逗号分隔)</label>
+                <input type="text" id="editNodeTraits" class="w-full border p-2 rounded text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500">职业</label>
+                <input type="text" id="editNodeOcc" class="w-full border p-2 rounded text-sm">
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-between">
+            <button id="deleteNodeBtn" class="text-red-500 hover:text-red-700 text-sm">
+                <i class="fa fa-trash"></i> 删除角色
+            </button>
+            <div class="space-x-2">
+                <button onclick="closeNodeEdit()" class="px-3 py-1.5 bg-gray-100 rounded text-sm">取消</button>
+                <button id="saveNodeBtn" class="px-3 py-1.5 bg-indigo-600 text-white rounded text-sm">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
     <script>
         // 获取DOM元素
         // ==========================================
@@ -537,7 +563,29 @@ async function loadAndRenderGraph() {
         };
 
         myChart.setOption(option);
+        myChart.off('click'); // 防止重复绑定
+        myChart.on('click', function (params) {
+            console.log("点击触发:", params); // 调试用
 
+            if (params.dataType === 'node') {
+                // 点击节点 -> 打开编辑弹窗
+                openNodeEdit(params.data);
+            } else if (params.dataType === 'edge') {
+                // 点击连线 -> 确认删除关系
+                if(confirm(`确定要断开 [${params.data.source}] 和 [${params.data.target}] 的关系吗？`)) {
+                    deleteEdge(params.data.source, params.data.target);
+                }
+            }
+        });
+         myChart.on('click', function (params) {
+        if (params.dataType === 'node') {
+            openNodeEdit(params.data);
+        } else if (params.dataType === 'edge') {
+            if(confirm(`确定要删除 [${params.data.source}] 和 [${params.data.target}] 之间的关系吗？`)) {
+                deleteEdge(params.data.source, params.data.target);
+            }
+        }
+    });
         // 监听窗口大小变化
         window.addEventListener('resize', () => myChart.resize());
 
@@ -548,6 +596,8 @@ async function loadAndRenderGraph() {
         loading.classList.add('hidden');
     }
 }
+
+
         const userInput = document.getElementById('userInput');
         const aiOutput = document.getElementById('aiOutput');
         const submitBtn = document.getElementById('submitBtn');
@@ -742,37 +792,7 @@ async function loadAndRenderGraph() {
             }
         });
 
-        // pub.addEventListener('click', async () => {
-        //     try {
-        //         pub.classList.add('hidden')
-        //         pubing.classList.remove('hidden')
-        //         const editedContent = document.querySelector('#aiOutput > div').innerText;
-        //         const response = await fetch('/api/publish', {
-        //             method: 'POST',
-        //             headers: {
-        //                 'Content-Type': 'application/json',
-        //             },
-        //             body: JSON.stringify({ publish_content: editedContent }),
-        //         });
-        //
-        //         if (!response.ok) {
-        //             throw new Error('API请求失败');
-        //         }
-        //
-        //         const data = await response.json(); // 假设后端返回的是 { "response": [...] }
-        //         fetchBookCatalog()
-        //         pub.classList.add('hidden')
-        //         pubing.classList.add('hidden')
-        //         document.querySelector('#aiOutput > div').innerHTML='<div class="text-gray-400 fleclassNamex-col items-center justify-center h-64 " contenteditable="false">\n' +
-        //             '                        <i class="fa fa-comment-o tclassNamexl mb-4 text-gray-300"></i>\n' +
-        //             '                        <p>AI生成的内容将显示在这里...</p>\n' +
-        //             '                    </div>'
-        //
-        //
-        //     } catch (error) {
-        //         console.error('发布失败', error);
-        //     }
-        // });
+
         let pendingToolCalls = []; // 暂存分析结果
 
 pub.addEventListener('click', async () => {
@@ -1053,6 +1073,97 @@ document.getElementById('cancelPublishBtn2').addEventListener('click', hideModal
         script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
         document.head.appendChild(script);
 
+        // === 新增：图谱交互逻辑 ===
+let currentNodeData = null; // 暂存当前点击的节点数据
+
+// 在 myChart 初始化后，添加事件监听
+// 找到 loadAndRenderGraph 函数中的 myChart.setOption(option); 下方，插入：
+
+    // --- 插入开始 ---
+
+    // --- 插入结束 ---
+
+// 打开编辑窗口
+function openNodeEdit(nodeData) {
+    currentNodeData = nodeData;
+    document.getElementById('editNodeTitle').innerText = `编辑：${nodeData.name}`;
+    // 填充数据 (这里假设 traits 是数组)
+    document.getElementById('editNodeTraits').value = nodeData.traits ? nodeData.traits.join('，') : '';
+    document.getElementById('editNodeOcc').value = nodeData.occupations ? nodeData.occupations.join('，') : '';
+
+    document.getElementById('nodeEditModal').classList.remove('hidden');
+    document.getElementById('nodeEditModal').classList.add('flex');
+}
+
+function closeNodeEdit() {
+    document.getElementById('nodeEditModal').classList.add('hidden');
+    document.getElementById('nodeEditModal').classList.remove('flex');
+}
+
+// 保存修改
+document.getElementById('saveNodeBtn').addEventListener('click', async () => {
+    if(!currentNodeData) return;
+
+    const newTraits = document.getElementById('editNodeTraits').value.split(/[,，]/).map(s => s.trim()).filter(s => s);
+    const newOccs = document.getElementById('editNodeOcc').value.split(/[,，]/).map(s => s.trim()).filter(s => s);
+
+    const payload = {
+        operation: "update_node",
+        data: {
+            name: currentNodeData.name,
+            profile: {
+                traits: newTraits,
+                occupations: newOccs
+            }
+        }
+    };
+
+    await sendGraphEdit(payload);
+    closeNodeEdit();
+});
+
+// 删除节点
+document.getElementById('deleteNodeBtn').addEventListener('click', async () => {
+    console.log('删除节点', currentNodeData.name)
+    if(!currentNodeData) return;
+    if(confirm(`危险操作！\n确定要彻底删除角色 [${currentNodeData.name}] 及其所有关系吗？此操作不可恢复。`)) {
+        await sendGraphEdit({
+            operation: "delete_node",
+            data: { name: currentNodeData.name }
+        });
+        closeNodeEdit();
+    }
+});
+
+// 删除连线
+async function deleteEdge(source, target) {
+    await sendGraphEdit({
+        operation: "delete_edge",
+        data: { char_a: source, char_b: target }
+    });
+}
+
+// 统一发送请求
+async function sendGraphEdit(payload) {
+    try {
+        const response = await fetch('/api/graph/edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const res = await response.json();
+        if(res.success) {
+            // 刷新图谱
+            loadAndRenderGraph();
+            alert("操作成功");
+        } else {
+            alert("操作失败: " + res.message);
+        }
+    } catch(e) {
+        console.error(e);
+        alert("请求错误");
+    }
+}
     </script>
 </body>
 </html>
