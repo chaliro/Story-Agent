@@ -28,6 +28,8 @@ class RewriterOutput(BaseModel):
 class DistillOutput(BaseModel):
     distilled_brief: list[str] = Field(description="修订后的章节草稿内容")
 
+from character import get_knowledge_base, get_story_graph_context
+
 def writer_agent(state: StoryState) -> Dict[str, str]:
     """作家Agent - 生成章节初稿"""
     print(f"--- 📝 Writer Agent: Drafting Chapter {state['current_chapter_index']}: '{state['chapter_title']}' ---")
@@ -85,6 +87,7 @@ def writer_agent(state: StoryState) -> Dict[str, str]:
     memory_dir = get_memory_path()
     memory = MemorySystem.load(memory_dir, get_embedding_llm())
 
+
     # 上一章内容回顾
     previous_chapter_section = "### 上一章内容回顾\n(这是故事的第一章，没有前文。)"
     if full_text_history:
@@ -126,7 +129,25 @@ def writer_agent(state: StoryState) -> Dict[str, str]:
 
     # 创建输出解析器
     parser = PydanticOutputParser(pydantic_object=WriterOutput)
+    # 获取本章关注的角色
+    character_focus = creative_brief.get("character_focus", [])
 
+    # === 🔴 核心修改点：调用图谱推理引擎 ===
+    print(f"--- 🕸️ GraphRAG: Reasoning for characters {character_focus} ---")
+    graph_context_str = get_story_graph_context(character_focus)
+
+    # 原来的 JSON 信息可以保留作为基础属性补充，也可以简化
+    # 这里我们把图谱信息整合进去
+
+    # 构建新的 Prompt 上下文部分
+    character_section = f"""
+    ### 👥 角色知识库与关系图谱 (GraphRAG)
+    **基础档案**:
+    {character_relevant_info} 
+
+    **🕸️ 深度关系推理 (来自图数据库)**:
+    {graph_context_str}
+    """
     # 构建Prompt
     prompt_template = """
 你是一位世界级的小说家，你的任务是基于所有给定的背景信息和创作指南，创作出故事的下一章。
@@ -141,7 +162,7 @@ def writer_agent(state: StoryState) -> Dict[str, str]:
 ### 长期历史背景回顾 (AI记忆系统提供，前三个相关摘要)
 {long_term_context}
 ---
-{character_relevant_info}
+{character_section}
 ---
 ### 本章创作核心指南
 * **章节标题**: "{chapter_title}"
@@ -166,7 +187,7 @@ def writer_agent(state: StoryState) -> Dict[str, str]:
             input_variables=[
                 "style_instruction_section", "previous_chapter_section",
                 "three_chapters_back_summary", "long_term_context",
-                "character_relevant_info", "chapter_title", "chapter_outline",
+                "character_section", "chapter_title", "chapter_outline",
                 "narrative_goals", "character_focus", "thematic_elements", "structural_requirements"
             ],
             partial_variables={"format_instructions": parser.get_format_instructions()}
@@ -178,7 +199,7 @@ def writer_agent(state: StoryState) -> Dict[str, str]:
             "previous_chapter_section": previous_chapter_section,
             "three_chapters_back_summary": three_chapters_back_summary,
             "long_term_context": long_term_context,
-            "character_relevant_info": character_relevant_info,
+            "character_section": character_section,
             "chapter_title": chapter_title,
             "chapter_outline": chapter_outline,
             "narrative_goals": ', '.join(narrative_goals),

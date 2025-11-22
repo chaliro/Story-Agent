@@ -1,0 +1,13 @@
+langchain
+langgraph
+pydantic
+dotenv
+json
+re
+langgraph
+langchain_core
+pprint
+fastapi
+langchain_community
+langchain_ollama
+langchain_openai

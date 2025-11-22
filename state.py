@@ -17,6 +17,10 @@ from typing import TypedDict, List, Dict, Optional, Any, Annotated
 # 为了在类型提示中使用 MemorySystem 而不产生循环导入问题，
 # 我们可以使用前向引用字符串 'MemorySystem'。
 # from memory_system import MemorySystem  # 实际使用时会像这样导入
+# === 新增 ===
+class ConfirmPublishRequest(BaseModel):
+    publish_content: str
+    tool_calls: List[Dict[str, Any]]  # 前端确认后的操作列表
 
 # ================================================================= #
 # 1. 组件数据结构 (Component Data Structures)

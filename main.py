@@ -271,6 +271,112 @@ def _build_user_input(story_data: StoryData) -> str:
 
     return "\n".join(user_input_parts)
 
+
+# ==========================================
+# 新增：知识图谱可视化接口
+# ==========================================
+@app.get("/api/graph_data", response_class=JSONResponse)
+async def get_graph_data(project_id: str):
+    """读取并返回 NetworkX 图谱数据"""
+    dotenv.load_dotenv()
+    memory_root = os.getenv("MEMORY_ROOT", "./vector_memory")
+
+    # 构造路径：vector_memory/项目ID/story_graph.json
+    graph_path = os.path.join(memory_root, str(project_id), "story_graph.json")
+
+    if os.path.exists(graph_path):
+        try:
+            with open(graph_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return data  # 直接返回 node-link 格式的 JSON
+        except Exception as e:
+            print(f"读取图谱失败: {e}")
+            return {"nodes": [], "links": []}
+    else:
+        # 如果文件不存在，返回空图
+        return {"nodes": [], "links": []}
+
+
+from state import ConfirmPublishRequest
+from character import execute_tool_calls  # 确保导入了这个函数
+
+
+# ==========================================
+# 1. 阶段一：预发布分析 (提取断言与关系)
+# ==========================================
+@app.post("/api/publish/analyze", response_class=JSONResponse)
+async def analyze_publish(state: publish_state):
+    """
+    预发布：不保存，仅分析文本，提取图谱更新建议，返回给前端确认。
+    """
+    print("--- 🚀 阶段一：预发布分析 ---")
+    dotenv.load_dotenv()
+    dir1 = os.getenv("MEMORY_ROOT")
+    dir2 = os.getenv("CURRENT_PROJECT_ID")
+    dir3 = "state.json"
+
+    state_path = os.path.join(dir1, dir2, dir3)
+    best_draft = state.publish_content
+
+    # 读取当前章节索引（不修改文件）
+    with open(state_path, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+    current_chapter_index = data.get("current_chapter_index", 1)
+
+    # 调用 character.py 中的分析函数
+    # 注意：这里我们不执行，只获取 tool_calls 列表
+    print(f"--- 正在分析第 {current_chapter_index} 章的实体与关系 ---")
+    tool_calls = run_complete_relationship_analysis(best_draft, current_chapter=current_chapter_index)
+
+    return {
+        "tool_calls": tool_calls,
+        "message": f"分析完成，生成了 {len(tool_calls)} 条图谱更新建议"
+    }
+
+
+# ==========================================
+# 2. 阶段二：确认发布 (执行保存与更新)
+# ==========================================
+@app.post("/api/publish/confirm", response_class=JSONResponse)
+async def confirm_publish(request: ConfirmPublishRequest):
+    """
+    最终发布：接收用户确认的文本和图谱操作，执行真正的写入。
+    """
+    print("--- 🚀 阶段二：用户确认发布 ---")
+    dotenv.load_dotenv()
+    dir1 = os.getenv("MEMORY_ROOT")
+    dir2 = os.getenv("CURRENT_PROJECT_ID")
+
+    # 路径定义
+    state_path = os.path.join(dir1, dir2, "state.json")
+    chapter_path = os.path.join(dir1, dir2, "chapter.json")
+    memory_path = get_memory_path()
+
+    # 1. 执行文本发布 (保存章节、更新摘要)
+    with open(state_path, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+
+    # 使用 helper 中的 publish_chapter 更新内存状态
+    final_state = publish_chapter(data, request.publish_content)
+
+    # 写入 chapter.json
+    put_chapter(final_state["chapter_title"], final_state["published_chapter"], chapter_path)
+
+    # 2. 【核心】执行用户确认的图谱更新操作 (GraphRAG)
+    print(f"--- 正在执行 {len(request.tool_calls)} 条图谱更新操作 ---")
+    execute_tool_calls(request.tool_calls)
+
+    # 3. 状态归档 (清理草稿，准备下一章)
+    finalize_chapter_and_save_state(final_state, state_path, memory_path)
+
+    # 4. 获取最新的目录返回给前端
+    response = get_all_chapter(chapter_path).keys()
+    res = list(response)
+    if "current_index" in res:
+        res.remove("current_index")
+
+    return {"response": res}
+
 if __name__ == "__main__":
     import uvicorn
 

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI小说创作辅助系统 - 测试界面</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
     <!-- 配置Tailwind自定义主题 -->
@@ -78,6 +79,19 @@
                     测试模式
                 </span>
             </div>
+            <div class="flex items-center space-x-4">
+    <button id="showGraphBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center shadow-sm">
+        <i class="fa fa-share-alt mr-2"></i>
+        人物关系图谱
+    </button>
+
+    <div class="text-sm text-gray-500">
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <i class="fa fa-circle text-green-500 mr-1 text-[8px]"></i>
+            测试模式
+        </span>
+    </div>
+</div>
         </div>
     </header>
 
@@ -310,10 +324,230 @@
             <p>AI小说创作辅助系统 &copy; 2025 | 测试版本</p>
         </div>
     </footer>
+    <div id="graphModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white w-[90vw] h-[85vh] rounded-xl shadow-2xl flex flex-col overflow-hidden transform transition-all scale-95 opacity-0" id="graphModalContent">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fa fa-project-diagram text-indigo-600 mr-2"></i>人物关系与剧情脉络</h3>
+                <p class="text-xs text-gray-500 mt-1">基于 GraphRAG 实时生成的动态逻辑网络</p>
+            </div>
+            <button id="closeGraphBtn" class="text-gray-400 hover:text-gray-600 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200">
+                <i class="fa fa-times text-lg"></i>
+            </button>
+        </div>
 
+        <div class="flex-grow relative bg-slate-50">
+            <div id="relationGraph" class="w-full h-full"></div>
+
+            <div id="graphLoading" class="absolute inset-0 flex items-center justify-center bg-white/80 z-10 hidden">
+                <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600"></div>
+            </div>
+        </div>
+    </div>
+</div>
+    <div id="publishModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-sm">
+    <div class="bg-white w-[800px] max-h-[80vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
+        <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-white"><i class="fa fa-check-circle mr-2"></i>发布审核：知识图谱更新</h3>
+            <button id="cancelPublishBtn" class="text-white/80 hover:text-white">
+                <i class="fa fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <div class="p-6 flex-grow overflow-y-auto bg-gray-50">
+            <div class="mb-4 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fa fa-info-circle text-blue-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            AI 从当前章节提取了以下关键信息。请检查并确认，这些信息将写入 <strong>知识图谱</strong>，影响后续剧情逻辑。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="toolCallsList" class="space-y-3">
+                </div>
+        </div>
+
+        <div class="px-6 py-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
+            <button id="cancelPublishBtn2" class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                取消
+            </button>
+            <button id="confirmPublishBtn" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-md transition-all flex items-center">
+                <i class="fa fa-paper-plane mr-2"></i> 确认并发布
+            </button>
+        </div>
+    </div>
+</div>
     <script>
         // 获取DOM元素
+        // ==========================================
+// 知识图谱可视化逻辑
+// ==========================================
+const showGraphBtn = document.getElementById('showGraphBtn');
+const closeGraphBtn = document.getElementById('closeGraphBtn');
+const graphModal = document.getElementById('graphModal');
+const graphModalContent = document.getElementById('graphModalContent');
+let myChart = null;
 
+// 打开弹窗
+showGraphBtn.addEventListener('click', () => {
+    graphModal.classList.remove('hidden');
+    graphModal.classList.add('flex');
+    // 简单的入场动画
+    setTimeout(() => {
+        graphModalContent.classList.remove('scale-95', 'opacity-0');
+        graphModalContent.classList.add('scale-100', 'opacity-100');
+    }, 10);
+
+    loadAndRenderGraph();
+});
+
+// 关闭弹窗
+const closeGraph = () => {
+    graphModalContent.classList.remove('scale-100', 'opacity-100');
+    graphModalContent.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        graphModal.classList.add('hidden');
+        graphModal.classList.remove('flex');
+    }, 300);
+};
+closeGraphBtn.addEventListener('click', closeGraph);
+graphModal.addEventListener('click', (e) => {
+    if (e.target === graphModal) closeGraph();
+});
+
+// 核心渲染函数
+async function loadAndRenderGraph() {
+    const loading = document.getElementById('graphLoading');
+    loading.classList.remove('hidden');
+
+    try {
+        // 获取当前项目ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('project_id');
+
+        if (!projectId) {
+            alert("未找到项目ID");
+            return;
+        }
+
+        // 1. 请求后端数据
+        const response = await fetch(`/api/graph_data?project_id=${projectId}`);
+        const graphData = await response.json();
+
+        if (!graphData.nodes || graphData.nodes.length === 0) {
+            loading.classList.add('hidden');
+            // 如果没数据，显示提示
+            if(myChart) myChart.dispose();
+            document.getElementById('relationGraph').innerHTML =
+                '<div class="flex h-full items-center justify-center text-gray-400">暂无图谱数据，请先发布一个章节</div>';
+            return;
+        }
+
+        // 2. 转换数据格式适配 ECharts
+        // NetworkX 的 nodes 是 {id: "Name", ...}
+        // ECharts 需要 {name: "Name", ...}
+        const nodes = graphData.nodes.map(node => ({
+            name: node.id,
+            value: node.traits ? node.traits.join(' ') : '',
+            // 根据角色重要性设置大小 (这里简单演示，可用度中心性优化)
+            symbolSize: node.role === '主角' ? 60 : 40,
+            category: node.gender === '男' ? 0 : 1, // 简单分类
+            draggable: true,
+            ...node
+        }));
+
+        const links = graphData.links.map(link => ({
+            source: link.source,
+            target: link.target,
+            // 边的标签
+            label: {
+                show: true,
+                formatter: link.relation || ''
+            },
+            // 边的提示信息
+            tooltip: {
+                formatter: link.summary || ''
+            },
+            lineStyle: {
+                curveness: 0.2 // 曲线
+            }
+        }));
+
+        // 3. 初始化图表
+        if (myChart) myChart.dispose();
+        myChart = echarts.init(document.getElementById('relationGraph'));
+
+        const option = {
+            title: {
+                text: '人物关系网',
+                subtext: `节点数: ${nodes.length} | 关系数: ${links.length}`,
+                top: 'bottom',
+                left: 'right'
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: function(params) {
+                    if (params.dataType === 'node') {
+                        const traits = params.data.traits ? `<br/>性格: ${params.data.traits.join('、')}` : '';
+                        const age = params.data.age ? `<br/>年龄: ${params.data.age}` : '';
+                        return `<strong>${params.name}</strong>${age}${traits}`;
+                    } else {
+                        return `<strong>${params.data.source} ↔ ${params.data.target}</strong><br/>关系: ${params.data.label.formatter}<br/>摘要: ${params.data.tooltip.formatter}`;
+                    }
+                }
+            },
+            legend: {
+                data: ['男性/未知', '女性'],
+                top: 20
+            },
+            series: [
+                {
+                    type: 'graph',
+                    layout: 'force', // 力引导布局
+                    data: nodes,
+                    links: links,
+                    categories: [{name: '男性/未知'}, {name: '女性'}],
+                    roam: true, // 允许缩放平移
+                    label: {
+                        show: true,
+                        position: 'right',
+                        formatter: '{b}'
+                    },
+                    force: {
+                        repulsion: 500, // 排斥力
+                        edgeLength: 200 // 边长
+                    },
+                    lineStyle: {
+                        color: 'source',
+                        curveness: 0.3
+                    },
+                    emphasis: {
+                        focus: 'adjacency', // 高亮相邻节点
+                        lineStyle: {
+                            width: 4
+                        }
+                    }
+                }
+            ]
+        };
+
+        myChart.setOption(option);
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', () => myChart.resize());
+
+    } catch (error) {
+        console.error("图谱渲染失败:", error);
+        alert("图谱加载失败");
+    } finally {
+        loading.classList.add('hidden');
+    }
+}
         const userInput = document.getElementById('userInput');
         const aiOutput = document.getElementById('aiOutput');
         const submitBtn = document.getElementById('submitBtn');
@@ -436,27 +670,7 @@
                 document.getElementById('userInput').value = null;
 
 
-                // creative_brief: {
-                //     narrative_goals: Array.from(document.querySelectorAll('#narrative_goals input'))
-                //         .map(input => input.value.trim()),
-                //     character_focus: Array.from(document.querySelectorAll('#character_focus input'))
-                //         .map(input => input.value.trim()),
-                //     thematic_elements: Array.from(document.querySelectorAll('#thematic_elements input'))
-                //         .map(input => input.value.trim()),
-                //     structural_requirements: Array.from(document.querySelectorAll('#structural_requirements input'))
-                //         .map(input => input.value.trim())
-                // }
-                // 显示返回的数据
-                // aiOutput.innerHTML = `
-                //     <div class="p-4">
-                //         <p><strong>章节标题:</strong> ${data.chapter_title}</p>
-                //         <p><strong>章节大纲:</strong> ${data.chapter_outline}</p>
-                //         <p><strong>叙事目标:</strong> ${data.creative_brief.narrative_goals.join(', ')}</p>
-                //         <p><strong>角色焦点:</strong> ${data.creative_brief.character_focus.join(', ')}</p>
-                //         <p><strong>主题元素:</strong> ${data.creative_brief.thematic_elements.join(', ')}</p>
-                //         <p><strong>结构要求:</strong> ${data.creative_brief.structural_requirements.join(', ')}</p>
-                //     </div>
-                // `;
+
 
                 aiOutput.classList.remove('hidden');
                 loadingIndicator.classList.add('hidden');
@@ -528,100 +742,185 @@
             }
         });
 
-        pub.addEventListener('click', async () => {
-            try {
-                pub.classList.add('hidden')
-                pubing.classList.remove('hidden')
-                const editedContent = document.querySelector('#aiOutput > div').innerText;
-                const response = await fetch('/api/publish', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ publish_content: editedContent }),
-                });
+        // pub.addEventListener('click', async () => {
+        //     try {
+        //         pub.classList.add('hidden')
+        //         pubing.classList.remove('hidden')
+        //         const editedContent = document.querySelector('#aiOutput > div').innerText;
+        //         const response = await fetch('/api/publish', {
+        //             method: 'POST',
+        //             headers: {
+        //                 'Content-Type': 'application/json',
+        //             },
+        //             body: JSON.stringify({ publish_content: editedContent }),
+        //         });
+        //
+        //         if (!response.ok) {
+        //             throw new Error('API请求失败');
+        //         }
+        //
+        //         const data = await response.json(); // 假设后端返回的是 { "response": [...] }
+        //         fetchBookCatalog()
+        //         pub.classList.add('hidden')
+        //         pubing.classList.add('hidden')
+        //         document.querySelector('#aiOutput > div').innerHTML='<div class="text-gray-400 fleclassNamex-col items-center justify-center h-64 " contenteditable="false">\n' +
+        //             '                        <i class="fa fa-comment-o tclassNamexl mb-4 text-gray-300"></i>\n' +
+        //             '                        <p>AI生成的内容将显示在这里...</p>\n' +
+        //             '                    </div>'
+        //
+        //
+        //     } catch (error) {
+        //         console.error('发布失败', error);
+        //     }
+        // });
+        let pendingToolCalls = []; // 暂存分析结果
 
-                if (!response.ok) {
-                    throw new Error('API请求失败');
-                }
+pub.addEventListener('click', async () => {
+    // 1. UI 切换到加载状态
+    pub.classList.add('hidden');
+    pubing.classList.remove('hidden');
 
-                const data = await response.json(); // 假设后端返回的是 { "response": [...] }
-                fetchBookCatalog()
-                pub.classList.add('hidden')
-                pubing.classList.add('hidden')
-                document.querySelector('#aiOutput > div').innerHTML='<div class="text-gray-400 fleclassNamex-col items-center justify-center h-64 " contenteditable="false">\n' +
-                    '                        <i class="fa fa-comment-o tclassNamexl mb-4 text-gray-300"></i>\n' +
-                    '                        <p>AI生成的内容将显示在这里...</p>\n' +
-                    '                    </div>'
+    try {
+        // 获取编辑器里的最终文本
+        const editedContent = document.querySelector('#aiOutput > div').innerText;
 
-                // 检查返回的数据是否包含 "response" 字段，并且该字段是一个数组
-                // if (data.response && Array.isArray(data.response)) {
-                //     const catalogItems = document.getElementById('catalogItems');
-                //     catalogItems.innerHTML = '';
-                //
-                //     data.response.forEach((chapter, index) => {
-                //         const button = document.createElement('button');
-                //         button.className = 'w-full px-3 py-1.5 bg-gray-100 rounded hover:bg-gray-200 text-left text-sm';
-                //         button.textContent = `${index + 1}. ${chapter}`;
-                //         button.addEventListener('click', async () => {
-                //             try {
-                //                 // 发送请求获取章节内容
-                //                 const response = await fetch('/api/get_chapter', {
-                //                     method: 'POST',
-                //                     headers: {
-                //                         'Content-Type': 'application/json',
-                //                     },
-                //                     body: JSON.stringify({ name: chapter }),
-                //                 });
-                //                 const data = await response.json();
-                //                 const content = data.content;
-                //
-                //                 // 创建弹窗
-                //                 const modal = document.createElement('div');
-                //                 modal.id = 'chapterModal';
-                //                 modal.className = 'fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50';
-                //                 modal.innerHTML = `
-                //                     <div class="bg-white rounded-xl w-full max-w-3xl max-h-[80vh] overflow-y-auto">
-                //                         <div class="flex justify-between items-center p-4 bg-gray-100 border-b">
-                //                             <h3 class="text-lg font-semibold">章节内容</h3>
-                //                             <button id="closeModal" class="text-gray-500 hover:text-gray-700">
-                //                                 <i class="fa fa-times"></i>
-                //                             </button>
-                //                         </div>
-                //                         <div class="p-6" id="modalContent">
-                //                             ${content}
-                //                         </div>
-                //                     </div>
-                //                 `;
-                //                 document.body.appendChild(modal);
-                //
-                //                 // 关闭弹窗事件
-                //                 document.getElementById('closeModal').addEventListener('click', () => {
-                //                     modal.remove();
-                //                 });
-                //
-                //                 // 点击弹窗背景关闭（可选）
-                //                 modal.addEventListener('click', (e) => {
-                //                     if (e.target === modal) {
-                //                         modal.remove();
-                //                     }
-                //                 });
-                //             } catch (error) {
-                //                 console.error('获取章节内容失败', error);
-                //             }
-                //         });
-                //         catalogItems.appendChild(button);
-                //     });
-                //
-                //     // 显示目录框
-                //     document.getElementById('bookCatalog').classList.remove('hidden');
-                // } else {
-                //     console.error('返回的数据结构不符合预期:', data);
-                // }
-            } catch (error) {
-                console.error('发布失败', error);
-            }
+        // 2. 调用后端【预分析】接口
+        const response = await fetch('/api/publish/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ publish_content: editedContent }),
         });
+
+        const data = await response.json();
+        pendingToolCalls = data.tool_calls; // 保存下来备用
+
+        // 3. 渲染审核弹窗
+        renderPublishModal(pendingToolCalls);
+
+        // 4. 显示弹窗，隐藏加载条（因为要等用户操作）
+        document.getElementById('publishModal').classList.remove('hidden');
+        document.getElementById('publishModal').classList.add('flex');
+        pubing.classList.add('hidden');
+        pub.classList.remove('hidden'); // 恢复按钮，万一用户取消了还能重点
+
+    } catch (error) {
+        console.error('分析失败', error);
+        alert('发布分析失败，请查看控制台');
+        pubing.classList.add('hidden');
+        pub.classList.remove('hidden');
+    }
+});
+
+// 渲染审核列表的函数
+function renderPublishModal(toolCalls) {
+    const container = document.getElementById('toolCallsList');
+    container.innerHTML = '';
+
+    if (toolCalls.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-500 py-8">本章未检测到显著的图谱更新（如新角色或关系变化）。</div>';
+        return;
+    }
+
+    toolCalls.forEach((call, index) => {
+        let html = '';
+        const args = call.args;
+
+        // 根据不同类型的操作渲染不同的卡片
+        if (call.name === 'create_character_if_not_exists') {
+            html = `
+                <div class="bg-white border border-green-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex items-start">
+                        <div class="bg-green-100 p-2 rounded-full mr-3 text-green-600"><i class="fa fa-user-plus"></i></div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">角色更新：${args.name}</h4>
+                            <p class="text-sm text-gray-600 mt-1">
+                                <span class="bg-gray-100 px-2 py-0.5 rounded text-xs">性格: ${args.traits.join(', ')}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>`;
+        } else if (call.name === 'update_relationship') {
+            html = `
+                <div class="bg-white border border-blue-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex items-start">
+                        <div class="bg-blue-100 p-2 rounded-full mr-3 text-blue-600"><i class="fa fa-link"></i></div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">关系变化：${args.character_a} ↔ ${args.character_b}</h4>
+                            <p class="text-sm text-blue-600 font-medium mt-1">${args.new_status}</p>
+                            <p class="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded border border-gray-100">"${args.event_summary}"</p>
+                        </div>
+                    </div>
+                </div>`;
+        } else if (call.name === 'update_character_backstory') {
+            html = `
+                <div class="bg-white border border-purple-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex items-start">
+                        <div class="bg-purple-100 p-2 rounded-full mr-3 text-purple-600"><i class="fa fa-book-open"></i></div>
+                        <div>
+                            <h4 class="font-bold text-gray-800">背景故事：${args.name}</h4>
+                            <p class="text-xs text-gray-500 mt-1 line-clamp-2">${args.new_information}</p>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        container.innerHTML += html;
+    });
+}
+
+// 确认发布按钮逻辑
+document.getElementById('confirmPublishBtn').addEventListener('click', async () => {
+    const modal = document.getElementById('publishModal');
+    const confirmBtn = document.getElementById('confirmPublishBtn');
+
+    // 1. 锁定按钮
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 写入图谱中...';
+
+    try {
+        const editedContent = document.querySelector('#aiOutput > div').innerText;
+
+        // 2. 调用后端【最终确认】接口
+        const response = await fetch('/api/publish/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                publish_content: editedContent,
+                tool_calls: pendingToolCalls // 把刚才确认的列表发回去
+            }),
+        });
+
+        if (!response.ok) throw new Error('发布失败');
+
+        // 3. 成功后的清理
+        const data = await response.json();
+        fetchBookCatalog(); // 刷新目录
+
+        // 关闭弹窗
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
+        // 重置编辑器
+        document.querySelector('#aiOutput > div').innerHTML = '<div class="text-gray-400 flex flex-col items-center justify-center h-64"><i class="fa fa-check-circle text-4xl mb-4 text-green-500"></i><p>发布成功！已写入图谱。</p></div>';
+
+        pub.classList.add('hidden'); // 隐藏发布按钮
+
+    } catch (error) {
+        console.error(error);
+        alert('写入失败，请重试');
+    } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fa fa-paper-plane mr-2"></i> 确认并发布';
+    }
+});
+
+// 取消按钮逻辑
+const hideModal = () => {
+    document.getElementById('publishModal').classList.add('hidden');
+    document.getElementById('publishModal').classList.remove('flex');
+};
+document.getElementById('cancelPublishBtn').addEventListener('click', hideModal);
+document.getElementById('cancelPublishBtn2').addEventListener('click', hideModal);
         // 添加项目按钮事件
         document.querySelectorAll('.add-item').forEach(button => {
             button.addEventListener('click', () => {
